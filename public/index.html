@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weather App</title>
+
+  <link href="./output.css" rel="stylesheet">
+</head>
+<body class="bg-blue-50 min-h-screen flex items-center justify-center p-4">
+  
+  <!-- Optional Dark Mode Toggle (remove if you don't want it) -->
+  <button 
+    id="themeToggle"
+    class="absolute top-4 right-4 px-4 py-2 bg-gray-700 text-white rounded-md shadow-md">
+    Toggle Theme
+  </button>
+
+  <div class="bg-white dark:bg-gray-800 w-full max-w-md rounded shadow p-6 space-y-4">
+    <h1 class="text-2xl font-bold text-center text-blue-700 dark:text-blue-200">Weather App</h1>
+    
+    <!-- Quick city buttons (recommendations) -->
+    <div class="flex flex-wrap gap-2 justify-center">
+      <button class="city-btn bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-700 dark:text-gray-200 px-3 py-1 rounded" data-city="New York">New York</button>
+      <button class="city-btn bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-700 dark:text-gray-200 px-3 py-1 rounded" data-city="Paris">Paris</button>
+      <button class="city-btn bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-700 dark:text-gray-200 px-3 py-1 rounded" data-city="Tokyo">Tokyo</button>
+      <button class="city-btn bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-700 dark:text-gray-200 px-3 py-1 rounded" data-city="Sydney">Sydney</button>
+      <button class="city-btn bg-blue-100 dark:bg-gray-700 hover:bg-blue-200 text-blue-700 dark:text-gray-200 px-3 py-1 rounded" data-city="Cairo">Cairo</button>
+    </div>
+
+    <!-- Search form -->
+    <form id="weatherForm" class="flex items-center space-x-2">
+      <input 
+        type="text" 
+        id="cityInput" 
+        placeholder="Enter city name" 
+        class="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none dark:bg-gray-700 dark:text-gray-100" 
+      />
+      <button 
+        type="submit" 
+        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Search
+      </button>
+    </form>
+
+    <!-- Geolocation button -->
+    <div class="text-center">
+      <button 
+        id="geoBtn"
+        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        Use My Location
+      </button>
+    </div>
+
+    <!-- Units toggle: Celsius / Fahrenheit -->
+    <div class="flex items-center justify-center space-x-2">
+      <span class="font-semibold text-gray-600 dark:text-gray-200">Celsius</span>
+      <label class="relative inline-flex items-center cursor-pointer">
+        <input type="checkbox" id="unitToggle" class="sr-only peer" />
+        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer
+                    peer-checked:after:translate-x-full peer-checked:after:border-white
+                    after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                    after:bg-white after:border-gray-300 after:border after:rounded-full
+                    after:h-5 after:w-5 after:transition-all
+                    peer-checked:bg-blue-600">
+        </div>
+      </label>
+      <span class="font-semibold text-gray-600 dark:text-gray-200">Fahrenheit</span>
+    </div>
+
+    <!-- Weather output -->
+    <div id="weatherResult" class="text-center"></div>
+  </div>
+
+  <script>
+    // 1) Map icon codes to background images (both day and night codes)
+    const getBackgroundImage = (iconCode) => {
+      const imageMap = {
+        '01d': 'url(https://images.unsplash.com/photo-1469122312224-c5846569feb1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '01n': 'url(https://images.unsplash.com/photo-1494022299300-899b96e49893?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '02d': 'url(https://images.unsplash.com/photo-1489515217757-5fd1be406fef?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '02n': 'url(https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?ixlib=rb-1.2.1&auto=format&fit=crop&w=934&q=80)',
+        '03d': 'url(https://images.unsplash.com/photo-1516466723877-e4ec1d736c8a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1953&q=80)',
+        '03n': 'url(https://images.unsplash.com/photo-1485510435561-3063e1f0d1ae?ixlib=rb-1.2.1&auto=format&fit=crop&w=1953&q=80)',
+        '04d': 'url(https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?ixlib=rb-1.2.1&auto=format&fit=crop&w=934&q=80)',
+        '04n': 'url(https://images.unsplash.com/photo-1499382929446-188f99270926?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '09d': 'url(https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?ixlib=rb-1.2.1&auto=format&fit=crop&w=1953&q=80)',
+        '09n': 'url(https://images.unsplash.com/photo-1564959130743-7699cdb77b96?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '10d': 'url(https://images.unsplash.com/photo-1536514498060-2fed1d8ef57f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '10n': 'url(https://images.unsplash.com/photo-1502685104226-ee32379fefbe?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '11d': 'url(https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?ixlib=rb-1.2.1&auto=format&fit=crop&w=1953&q=80)',
+        '11n': 'url(https://images.unsplash.com/photo-1457528877294-b48235bdaa68?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '13d': 'url(https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '13n': 'url(https://images.unsplash.com/photo-1607799271971-d7563301b73e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '50d': 'url(https://images.unsplash.com/photo-1504253163759-c23fccaebb55?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)',
+        '50n': 'url(https://images.unsplash.com/photo-1543622857-4763e4665141?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80)'
+      };
+      return imageMap[iconCode] || imageMap['01d'];
+    };
+
+    // 2) On DOM load, set up everything inside
+    document.addEventListener("DOMContentLoaded", () => {
+      const weatherForm = document.getElementById("weatherForm");
+      const cityInput = document.getElementById("cityInput");
+      const weatherResult = document.getElementById("weatherResult");
+      const geoBtn = document.getElementById("geoBtn");
+      const unitToggle = document.getElementById("unitToggle");
+      const cityButtons = document.querySelectorAll(".city-btn");
+
+      // If you have a theme toggle button in the HTML
+      const themeToggle = document.getElementById('themeToggle');
+      const body = document.body;
+
+      // Tailwind dark mode toggle (remove if not needed)
+      if (themeToggle) {
+        // Check localStorage for theme preference
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') {
+          body.classList.add('dark');
+        }
+
+        themeToggle.addEventListener('click', () => {
+          body.classList.toggle('dark');
+          const isDark = body.classList.contains('dark');
+          localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        });
+      }
+
+      // 'metric' = Celsius; 'imperial' = Fahrenheit
+      let currentUnits = "metric";
+
+      // Switch units when toggle changes
+      unitToggle.addEventListener("change", () => {
+        currentUnits = unitToggle.checked ? "imperial" : "metric";
+      });
+
+      // Handle form submit (by city name)
+      weatherForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const city = cityInput.value.trim();
+        if (!city) {
+          showError("Please enter a city name.");
+          return;
+        }
+        await fetchWeatherByCity(city);
+      });
+
+      // Handle city recommendation buttons
+      cityButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const city = button.getAttribute("data-city");
+          cityInput.value = city; // optional
+          await fetchWeatherByCity(city);
+        });
+      });
+
+      // Handle geolocation
+      geoBtn.addEventListener("click", () => {
+        if (!navigator.geolocation) {
+          showError("Geolocation is not supported by your browser.");
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            fetchWeatherByCoords(latitude, longitude);
+          },
+          (error) => {
+            showError("Unable to retrieve your location.");
+            console.error(error);
+          }
+        );
+      });
+
+      // Fetch weather by city
+      async function fetchWeatherByCity(city) {
+        try {
+          setLoading();
+          const response = await fetch(`/api/weather?city=${encodeURIComponent(city)}&units=${currentUnits}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            showError(errorData.error?.message || "City not found.");
+            return;
+          }
+          const data = await response.json();
+          renderWeather(data);
+        } catch (err) {
+          showError("An error occurred while fetching city data.");
+          console.error(err);
+        }
+      }
+
+      // Fetch weather by coordinates
+      async function fetchWeatherByCoords(lat, lon) {
+        try {
+          setLoading();
+          const response = await fetch(`/api/weather/coords?lat=${lat}&lon=${lon}&units=${currentUnits}`);
+          if (!response.ok) {
+            const errorData = await response.json();
+            showError(errorData.error?.message || "Location not found.");
+            return;
+          }
+          const data = await response.json();
+          renderWeather(data);
+        } catch (err) {
+          showError("An error occurred while fetching location data.");
+          console.error(err);
+        }
+      }
+
+      // Helper: set a loading message
+      function setLoading() {
+        weatherResult.innerHTML = `<p class="text-gray-500 dark:text-gray-300">Loading...</p>`;
+      }
+
+      // Helper: show error message
+      function showError(msg) {
+        weatherResult.innerHTML = `<p class="text-red-500 dark:text-red-300">${msg}</p>`;
+      }
+
+      // Helper: set the background image
+      function setBackground(iconCode) {
+        const bgImage = getBackgroundImage(iconCode);
+        // Preload the image before applying to avoid flicker
+        const img = new Image();
+        // Strip off the `url(...)` portion
+        img.src = bgImage.replace(/url\((.*)\)/, "$1");
+
+        img.onload = () => {
+          document.body.style.backgroundImage = bgImage;
+        };
+        img.onerror = () => {
+          // fallback if image fails
+          document.body.style.backgroundImage = "";
+        };
+      }
+
+      // Render weather data
+      function renderWeather(data) {
+        // Extract main weather info
+        const { name, main, weather, sys } = data;
+        const weatherObj = weather && weather[0];
+        // fallback icon code is '01d' if missing
+        const iconCode = weatherObj ? weatherObj.icon : '01d'; 
+        const description = weatherObj ? weatherObj.description : "N/A";
+        const unitsLabel = currentUnits === "metric" ? "°C" : "°F";
+
+        // Update background
+        setBackground(iconCode);
+
+        // Display weather details
+        weatherResult.innerHTML = `
+          <div class="p-6 space-y-4">
+            <h2 class="text-2xl font-bold dark:text-white text-gray-800 drop-shadow-md">
+              ${name}${sys?.country ? `, ${sys.country}` : ""}
+            </h2>
+            ${
+              iconCode
+                ? `<img class="mx-auto mb-2 w-24 h-24 drop-shadow-md" 
+                     src="https://openweathermap.org/img/wn/${iconCode}@4x.png" 
+                     alt="Weather Icon" />`
+                : ""
+            }
+            <div class="space-y-2">
+              <p class="text-xl dark:text-white text-gray-800 drop-shadow-md">
+                ${main.temp}${unitsLabel}
+              </p>
+              <p class="text-lg dark:text-white/80 text-gray-600 drop-shadow-md">
+                Feels like ${main.feels_like}${unitsLabel}
+              </p>
+              <p class="text-lg dark:text-white/80 text-gray-600 drop-shadow-md">
+                Humidity: ${main.humidity}%
+              </p>
+              <p class="text-lg capitalize dark:text-white/80 text-gray-600 drop-shadow-md">
+                ${description}
+              </p>
+            </div>
+          </div>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>
