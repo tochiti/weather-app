@@ -22,24 +22,22 @@ app.get("/", (req, res) => {
 app.get("/api/weather", async (req, res) => {
   const { city, units = "metric" } = req.query;
 
-  if (!city) {
-    return res.status(400).json({ error: "City parameter is required." });
-  }
+  if (!city) return res.status(400).json({ error: "City parameter is required." });
 
   try {
-    console.log("Fetching weather for city:", city);
-    const response = await axios.get(
-      "https://api.openweathermap.org/data/2.5/weather",
-      {
-        params: { q: city, appid: OPENWEATHER_API_KEY, units },
-      }
-    );
+    const response = await axios.get("https://api.openweathermap.org/data/2.5/weather", {
+      params: { q: city, appid: OPENWEATHER_API_KEY, units },
+    });
     res.json(response.data);
   } catch (err) {
-    console.error("Error fetching weather data:", err.message);
-    res.status(500).json({ error: "Error fetching weather data." });
+    if (err.response && err.response.data) {
+      res.status(err.response.status).json(err.response.data);
+    } else {
+      res.status(500).json({ error: "Internal server error." });
+    }
   }
 });
+
 
 app.get("/api/weather/coords", async (req, res) => {
   const { lat, lon, units = "metric" } = req.query;
